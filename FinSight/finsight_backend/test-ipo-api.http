@@ -1,0 +1,20 @@
+### IPO API Testing
+
+### 1. Manually trigger IPO fetch
+POST http://localhost:8080/api/ipo/fetch
+Content-Type: application/json
+
+### 2. Get all IPOs
+GET http://localhost:8080/api/ipo/all
+
+### 3. Get upcoming IPOs (today and tomorrow)
+GET http://localhost:8080/api/ipo/upcoming
+
+### 4. Get IPOs by date range (example: last 7 days)
+GET http://localhost:8080/api/ipo/range?startDate=2024-01-01&endDate=2024-01-31
+
+### 5. Get IPOs by status
+GET http://localhost:8080/api/ipo/status/priced
+
+### 6. Get IPOs by exchange
+GET http://localhost:8080/api/ipo/exchange/NYSE
