@@ -2,15 +2,15 @@ package com.example.finsight_backend.controller;
 
 import com.example.finsight_backend.entity.User;
 import com.example.finsight_backend.repository.UserRepository;
+import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import jakarta.servlet.http.HttpServletRequest;
-
-import java.util.List;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/debug")
@@ -40,8 +40,12 @@ public class DebugController {
     }
 
     @GetMapping("/oauth-flow")
-    public String testOAuthFlow() {
-        return "OAuth flow test - try: http://localhost:8080/oauth2/authorization/google";
+    public String testOAuthFlow(HttpServletRequest request) {
+        String oauthUrl = UriComponentsBuilder.fromUriString(buildBackendBaseUrl(request))
+                .path("/oauth2/authorization/google")
+                .build()
+                .toUriString();
+        return "OAuth flow test - try: " + oauthUrl;
     }
 
     @GetMapping("/session-info")
@@ -56,7 +60,20 @@ public class DebugController {
     }
 
     @GetMapping("/oauth-test")
-    public String testOAuth() {
-        return "OAuth test endpoint - try: http://localhost:8080/oauth2/authorization/google";
+    public String testOAuth(HttpServletRequest request) {
+        String oauthUrl = UriComponentsBuilder.fromUriString(buildBackendBaseUrl(request))
+                .path("/oauth2/authorization/google")
+                .build()
+                .toUriString();
+        return "OAuth test endpoint - try: " + oauthUrl;
+    }
+
+    private String buildBackendBaseUrl(HttpServletRequest request) {
+        String contextPath = request.getContextPath();
+        return ServletUriComponentsBuilder.fromRequestUri(request)
+                .replacePath(contextPath != null ? contextPath : "")
+                .replaceQuery(null)
+                .build()
+                .toUriString();
     }
 }

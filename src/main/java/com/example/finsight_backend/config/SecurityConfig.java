@@ -1,13 +1,14 @@
 package com.example.finsight_backend.config;
 
-import com.example.finsight_backend.security.JwtAuthenticationFilter;
-import com.example.finsight_backend.security.JwtTokenProvider;
-import com.example.finsight_backend.service.SimpleOAuth2UserService;
 import com.example.finsight_backend.entity.User;
 import com.example.finsight_backend.entity.Role;
 import com.example.finsight_backend.repository.UserRepository;
+import com.example.finsight_backend.security.JwtAuthenticationFilter;
+import com.example.finsight_backend.security.JwtTokenProvider;
+import com.example.finsight_backend.service.SimpleOAuth2UserService;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -22,6 +23,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Configuration
 @EnableWebSecurity
@@ -33,6 +35,9 @@ public class SecurityConfig {
     private final SimpleOAuth2UserService simpleOAuth2UserService;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontendUrl;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -55,6 +60,7 @@ public class SecurityConfig {
                                 .userService(simpleOAuth2UserService)
                         )
                         .successHandler((request, response, authentication) -> {
+                            final String frontendBase = normalizedFrontendUrl();
                             try {
                                 System.out.println("=== OAuth2 Success Handler Called ===");
                                 System.out.println("Authentication: " + authentication.getName());
@@ -75,7 +81,12 @@ public class SecurityConfig {
                                     email = oauth2User.getAttribute("email");
                                     if (email == null || email.isEmpty()) {
                                         System.err.println("ERROR: No email found in OAuth2 attributes");
-                                        response.sendRedirect("http://localhost:5173/login?error=no_email");
+                                        String redirectUrl = UriComponentsBuilder.fromUriString(frontendBase)
+                                                .path("/login")
+                                                .queryParam("error", "no_email")
+                                                .build()
+                                                .toUriString();
+                                        response.sendRedirect(redirectUrl);
                                         return;
                                     }
                                     
@@ -87,7 +98,12 @@ public class SecurityConfig {
                                     }
                                 } else {
                                     System.err.println("ERROR: Authentication principal is not OAuth2User");
-                                    response.sendRedirect("http://localhost:5173/login?error=invalid_principal");
+                                    String redirectUrl = UriComponentsBuilder.fromUriString(frontendBase)
+                                            .path("/login")
+                                            .queryParam("error", "invalid_principal")
+                                            .build()
+                                            .toUriString();
+                                    response.sendRedirect(redirectUrl);
                                     return;
                                 }
                                 
@@ -124,18 +140,34 @@ public class SecurityConfig {
                                 System.out.println("JWT token generated: " + jwtToken.substring(0, Math.min(20, jwtToken.length())) + "...");
                                 
                                 // Redirect to frontend with token
-                                response.sendRedirect("http://localhost:5173/oauth/callback?token=" + jwtToken);
+                                String redirectUrl = UriComponentsBuilder.fromUriString(frontendBase)
+                                        .path("/oauth/callback")
+                                        .queryParam("token", jwtToken)
+                                        .build()
+                                        .toUriString();
+                                response.sendRedirect(redirectUrl);
                                 
                             } catch (Exception e) {
                                 System.err.println("ERROR in OAuth2 success handler: " + e.getMessage());
                                 e.printStackTrace();
-                                response.sendRedirect("http://localhost:5173/login?error=authentication_failed");
+                                String redirectUrl = UriComponentsBuilder.fromUriString(frontendBase)
+                                        .path("/login")
+                                        .queryParam("error", "authentication_failed")
+                                        .build()
+                                        .toUriString();
+                                response.sendRedirect(redirectUrl);
                             }
                         })
                         .failureHandler((request, response, exception) -> {
                             System.err.println("OAuth2 authentication failed: " + exception.getMessage());
                             exception.printStackTrace();
-                            response.sendRedirect("http://localhost:5173/login?error=oauth_failed");
+                            String frontendBase = normalizedFrontendUrl();
+                            String redirectUrl = UriComponentsBuilder.fromUriString(frontendBase)
+                                    .path("/login")
+                                    .queryParam("error", "oauth_failed")
+                                    .build()
+                                    .toUriString();
+                            response.sendRedirect(redirectUrl);
                         })
                 )
                 .authenticationProvider(authenticationProvider)
@@ -155,5 +187,15 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private String normalizedFrontendUrl() {
+        String url = frontendUrl != null && !frontendUrl.isBlank() ? frontendUrl.trim() : "http://localhost:5173";
+        int schemeEnd = url.indexOf("://");
+        int minLength = schemeEnd >= 0 ? schemeEnd + 3 : 0;
+        while (url.endsWith("/") && url.length() > minLength) {
+            url = url.substring(0, url.length() - 1);
+        }
+        return url;
     }
 }
