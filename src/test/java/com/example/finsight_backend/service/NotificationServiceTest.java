@@ -1,5 +1,6 @@
 package com.example.finsight_backend.service;
 
+import com.example.finsight_backend.entity.Alert;
 import com.example.finsight_backend.entity.Notification;
 import com.example.finsight_backend.entity.User;
 import com.example.finsight_backend.repository.NotificationRepository;
@@ -41,6 +42,7 @@ class NotificationServiceTest {
 
     private User testUser;
     private Notification testNotification;
+    private Alert testAlert;
 
     @BeforeEach
     void setUp() {
@@ -53,6 +55,10 @@ class NotificationServiceTest {
         testNotification.setId(1L);
         testNotification.setUser(testUser);
         testNotification.setMessage("Test message");
+
+        testAlert = new Alert();
+        testAlert.setId(1L);
+        testAlert.setUser(testUser);
 
         // Mock the security context to simulate a logged-in user
         Authentication authentication = mock(Authentication.class);
@@ -73,7 +79,7 @@ class NotificationServiceTest {
         when(objectMapper.writeValueAsString(any())).thenReturn(expectedJsonPayload);
 
         // Act
-        notificationService.createAndSendNotification(testUser, message);
+        notificationService.createAndSendNotification(testUser, message, testAlert);
 
         // Assert
         verify(notificationRepository, times(1)).save(any(Notification.class));
