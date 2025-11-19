@@ -71,6 +71,11 @@ public class PortfolioService {
 
         for (Portfolio portfolio : portfolios) {
             try {
+                // If no history exists yet, backfill using candle-based history (same source as the history endpoint)
+                if (historyRepository.findByPortfolioOrderBySnapshotDateAsc(portfolio).isEmpty()) {
+                    computeBackfilledHistory(portfolio, 90);
+                }
+
                 if (historyRepository.existsByPortfolioAndSnapshotDate(portfolio, snapshotDate)) {
                     log.debug("Snapshot already exists for portfolio {} on {}", portfolio.getId(), snapshotDate);
                     continue;
@@ -369,6 +374,25 @@ public class PortfolioService {
             dto.setStaleCount(stalePerDate.getOrDefault(date, 0));
             out.add(dto);
         }
+
+        // Persist backfilled history so the UI can load stored snapshots
+        java.time.Instant capturedAt = java.time.Instant.now();
+        for (PortfolioHistoryPointDto dto : out) {
+            if (historyRepository.existsByPortfolioAndSnapshotDate(portfolio, dto.getSnapshotDate())) {
+                continue;
+            }
+            PortfolioHistory snapshot = new PortfolioHistory();
+            snapshot.setPortfolio(portfolio);
+            snapshot.setSnapshotDate(dto.getSnapshotDate());
+            snapshot.setCapturedAt(capturedAt);
+            snapshot.setInvested(dto.getInvested());
+            snapshot.setMarketValue(dto.getMarketValue());
+            snapshot.setPnlAbs(dto.getPnlAbs());
+            snapshot.setPnlPct(dto.getPnlPct());
+            snapshot.setStaleCount(dto.getStaleCount());
+            historyRepository.save(snapshot);
+        }
+
         return out;
     }
 
