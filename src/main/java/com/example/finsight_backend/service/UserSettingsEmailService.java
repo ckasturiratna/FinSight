@@ -2,75 +2,50 @@ package com.example.finsight_backend.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class UserSettingsEmailService {
 
-    private final JavaMailSender mailSender;
+    private final MailjetEmailService mailjetEmailService;
 
     public void sendPasswordChangeOtp(String email, String firstName, String otp) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setTo(email);
-            helper.setSubject("Password Change Verification - FinSight");
-            
-            String htmlContent = getPasswordChangeOtpTemplate(firstName, otp);
-            helper.setText(htmlContent, true);
-            
-            mailSender.send(message);
-            log.info("Password change OTP email sent to: {}", email);
-        } catch (MessagingException e) {
-            log.error("Error sending password change OTP email", e);
-            throw new RuntimeException("Failed to send email");
-        }
+        String htmlContent = getPasswordChangeOtpTemplate(firstName, otp);
+        mailjetEmailService.sendEmail(
+                email,
+                "Password Change Verification - FinSight",
+                toPlainText(htmlContent),
+                htmlContent
+        );
+        log.info("Password change OTP email sent to: {}", email);
     }
 
     public void sendEmailChangeOtp(String email, String firstName, String otp) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setTo(email);
-            helper.setSubject("Email Change Verification - FinSight");
-            
-            String htmlContent = getEmailChangeOtpTemplate(firstName, otp);
-            helper.setText(htmlContent, true);
-            
-        mailSender.send(message);
-            log.info("Email change OTP email sent to: {}", email);
-        } catch (MessagingException e) {
-            log.error("Error sending email change OTP email", e);
-            throw new RuntimeException("Failed to send email");
-        }
+        String htmlContent = getEmailChangeOtpTemplate(firstName, otp);
+        mailjetEmailService.sendEmail(
+                email,
+                "Email Change Verification - FinSight",
+                toPlainText(htmlContent),
+                htmlContent
+        );
+        log.info("Email change OTP email sent to: {}", email);
     }
 
     public void sendAccountDeletionOtp(String email, String firstName, String otp) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setTo(email);
-            helper.setSubject("Account Deletion Verification - FinSight");
-            
-            String htmlContent = getAccountDeletionOtpTemplate(firstName, otp);
-            helper.setText(htmlContent, true);
-            
-            mailSender.send(message);
-            log.info("Account deletion OTP email sent to: {}", email);
-        } catch (MessagingException e) {
-            log.error("Error sending account deletion OTP email", e);
-            throw new RuntimeException("Failed to send email");
-        }
+        String htmlContent = getAccountDeletionOtpTemplate(firstName, otp);
+        mailjetEmailService.sendEmail(
+                email,
+                "Account Deletion Verification - FinSight",
+                toPlainText(htmlContent),
+                htmlContent
+        );
+        log.info("Account deletion OTP email sent to: {}", email);
+    }
+
+    private String toPlainText(String htmlContent) {
+        return htmlContent.replaceAll("<[^>]*>", "").replaceAll("\\s+", " ").trim();
     }
 
     private String getPasswordChangeOtpTemplate(String firstName, String otp) {

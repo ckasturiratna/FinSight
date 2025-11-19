@@ -1,6 +1,6 @@
 package com.example.finsight_backend.controller;
 
-import com.example.finsight_backend.service.EmailService;
+import com.example.finsight_backend.service.MailjetEmailService;
 import com.example.finsight_backend.service.OtpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +16,7 @@ import java.util.Map;
 @Slf4j
 public class TestController {
 
-    private final EmailService emailService;
+    private final MailjetEmailService mailjetEmailService;
     private final OtpService otpService;
 
     @GetMapping("/protected")
@@ -40,7 +40,11 @@ public class TestController {
     public ResponseEntity<Map<String, String>> sendTestEmail(@RequestParam String email) {
         try {
             log.info("Sending test email to: {}", email);
-            emailService.sendEmail(email, "Test Email", "This is a test email from FinSight backend.");
+            mailjetEmailService.sendEmail(
+                    email,
+                    "Test Email",
+                    "This is a test email from FinSight backend.",
+                    "<p>This is a <strong>test email</strong> from FinSight backend.</p>");
             log.info("Test email sent successfully to: {}", email);
             
             Map<String, String> response = new HashMap<>();
@@ -55,6 +59,17 @@ public class TestController {
             response.put("email", email);
             return ResponseEntity.badRequest().body(response);
         }
+    }
+
+    @GetMapping("/test-mail")
+    public String test() throws Exception {
+        mailjetEmailService.sendEmail(
+                "your-email@example.com",
+                "Mailjet API Test",
+                "Plain text test message",
+                "<h1>HTML test message</h1>"
+        );
+        return "Mail sent!";
     }
 
     @PostMapping("/send-test-otp")

@@ -1,52 +1,34 @@
 package com.example.finsight_backend.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 @Service
 public class HtmlEmailService {
 
-    private final JavaMailSender mailSender;
+    private final MailjetEmailService mailjetEmailService;
     private final TemplateEngine templateEngine;
 
-    @Autowired
-    public HtmlEmailService(JavaMailSender mailSender, TemplateEngine templateEngine) {
-        this.mailSender = mailSender;
+    public HtmlEmailService(MailjetEmailService mailjetEmailService, TemplateEngine templateEngine) {
+        this.mailjetEmailService = mailjetEmailService;
         this.templateEngine = templateEngine;
     }
 
     public void sendHtmlEmail(String to, String subject, String templateName, Map<String, Object> variables) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            
-            helper.setTo(to);
-            helper.setSubject(subject);
-            helper.setFrom("noreply@finsight.com", "FinSight Team");
-            
-            // Create Thymeleaf context
-            Context context = new Context();
-            if (variables != null) {
-                context.setVariables(variables);
-            }
-            
-            // Process the template
-            String htmlContent = templateEngine.process(templateName, context);
-            helper.setText(htmlContent, true);
-            
-            mailSender.send(message);
-        } catch (MessagingException | UnsupportedEncodingException e) {
-            throw new RuntimeException("Failed to send HTML email", e);
+        // Create Thymeleaf context
+        Context context = new Context();
+        if (variables != null) {
+            context.setVariables(variables);
         }
+
+        // Process the template
+        String htmlContent = templateEngine.process(templateName, context);
+        String textContent = htmlContent.replaceAll("<[^>]*>", "").trim();
+
+        mailjetEmailService.sendEmail(to, subject, textContent, htmlContent);
     }
 
     public void sendOtpVerificationEmail(String to, String firstName, String otp, int expiryMinutes) {
