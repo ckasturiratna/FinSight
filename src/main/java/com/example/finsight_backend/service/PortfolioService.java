@@ -71,11 +71,6 @@ public class PortfolioService {
 
         for (Portfolio portfolio : portfolios) {
             try {
-                // If no history exists yet, backfill using candle-based history (same source as the history endpoint)
-                if (historyRepository.findByPortfolioOrderBySnapshotDateAsc(portfolio).isEmpty()) {
-                    computeBackfilledHistory(portfolio, 90);
-                }
-
                 if (historyRepository.existsByPortfolioAndSnapshotDate(portfolio, snapshotDate)) {
                     log.debug("Snapshot already exists for portfolio {} on {}", portfolio.getId(), snapshotDate);
                     continue;
@@ -336,9 +331,18 @@ public class PortfolioService {
                 closes = java.util.Map.of();
             }
             if (closes.isEmpty()) {
-                // bump stale for all existing dates we've seen so far
-                for (java.time.LocalDate d : new java.util.HashSet<>(marketValues.keySet())) {
-                    stalePerDate.merge(d, 1, Integer::sum);
+                // Add a one-day stale entry using current quote when candles are unavailable
+                try {
+                    PriceQuote quote = priceService.getPrice(ticker);
+                    java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+                    double mv = quantity * (quote != null && quote.getC() != null ? quote.getC() : 0.0);
+                    marketValues.merge(today, mv, Double::sum);
+                    stalePerDate.merge(today, 1, Integer::sum);
+                } catch (Exception ignored) {
+                    // If quote also fails, still bump stale on any dates present so far
+                    for (java.time.LocalDate d : new java.util.HashSet<>(marketValues.keySet())) {
+                        stalePerDate.merge(d, 1, Integer::sum);
+                    }
                 }
                 continue;
             }
@@ -357,6 +361,15 @@ public class PortfolioService {
 
         // Compose DTOs ordered by date asc
         List<PortfolioHistoryPointDto> out = new java.util.ArrayList<>(marketValues.size());
+
+        // If we still have no market values (no candles, no quotes), generate a single snapshot using live totals
+        if (marketValues.isEmpty()) {
+            SnapshotTotals totals = calculateTotals(holdings);
+            java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+            marketValues.put(today, totals.marketValue());
+            stalePerDate.put(today, totals.staleCount());
+        }
+
         for (Map.Entry<java.time.LocalDate, Double> entry : marketValues.entrySet()) {
             java.time.LocalDate date = entry.getKey();
             double mv = sanitizeDouble(entry.getValue());
