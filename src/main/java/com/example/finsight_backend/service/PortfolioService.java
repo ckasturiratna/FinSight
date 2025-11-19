@@ -333,11 +333,13 @@ public class PortfolioService {
             if (closes.isEmpty()) {
                 // Add a one-day stale entry using current quote when candles are unavailable
                 try {
-                    PriceQuote quote = priceService.getPrice(ticker);
+                    Optional<PriceQuote> quote = priceService.getLastPrice(ticker);
                     java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
-                    double mv = quantity * (quote != null && quote.getC() != null ? quote.getC() : 0.0);
-                    marketValues.merge(today, mv, Double::sum);
-                    stalePerDate.merge(today, 1, Integer::sum);
+                    if (quote.isPresent()) {
+                        double mv = quantity * toDouble(quote.get().getPrice());
+                        marketValues.merge(today, mv, Double::sum);
+                        stalePerDate.merge(today, 1, Integer::sum);
+                    }
                 } catch (Exception ignored) {
                     // If quote also fails, still bump stale on any dates present so far
                     for (java.time.LocalDate d : new java.util.HashSet<>(marketValues.keySet())) {
